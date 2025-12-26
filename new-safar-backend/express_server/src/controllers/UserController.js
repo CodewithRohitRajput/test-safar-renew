@@ -2,6 +2,33 @@ const ContentService = require('../services/ContentService');
 const ItineraryService = require('../services/ItineraryService');
 const CategoryService = require('../services/CategoryService');
 
+// Helper function to transform itinerary data to match frontend format
+const transformItinerary = (itinerary) => {
+  if (!itinerary) return null;
+  
+  const itiObj = itinerary.toObject ? itinerary.toObject() : itinerary;
+  
+  return {
+    id: itiObj._id?.toString() || itiObj.id,
+    title: itiObj.name || itiObj.title,
+    name: itiObj.name || itiObj.title,
+    description: itiObj.description || '',
+    shortDescription: itiObj.shortDescription || itiObj.description || '',
+    city: itiObj.city || '',
+    startingPrice: itiObj.price || itiObj.startingPrice || 0,
+    price: itiObj.price || 0,
+    view_images: itiObj.images || itiObj.view_images || [],
+    images: itiObj.images || [],
+    duration: itiObj.duration || '',
+    route_map: itiObj.route_map || itiObj._id?.toString() || itiObj.id,
+    is_trending: itiObj.trending === 'Yes',
+    is_active: itiObj.status === 'Active',
+    is_customize: itiObj.isCustomize === 'true',
+    categories: itiObj.categories || [],
+    travelLocation: itiObj.travelLocation || null
+  };
+};
+
 module.exports = {
   // Get home banners (from Content model where status is active)
   getHomeBanners: async (req, res) => {
@@ -95,12 +122,15 @@ module.exports = {
   getTrendingItineraries: async (req, res) => {
     try {
       const itineraries = await ItineraryService.findAll();
-      // Filter trending itineraries
-      const trending = itineraries.filter(iti => 
-        iti.trending === 'Yes' && 
-        iti.status === 'Active' && 
-        !iti.delete
-      ).slice(0, 10); // Limit to 10
+      // Filter trending itineraries and transform
+      const trending = itineraries
+        .filter(iti => 
+          iti.trending === 'Yes' && 
+          iti.status === 'Active' && 
+          !iti.delete
+        )
+        .slice(0, 10)
+        .map(transformItinerary); // Transform the data
       
       res.status(200).json({
         success: true,
@@ -108,6 +138,7 @@ module.exports = {
         message: "ITINERARIES_FETCHED"
       });
     } catch (err) {
+      console.error('Error in getTrendingItineraries:', err);
       res.status(500).json({ success: false, message: err.message });
     }
   },
@@ -163,41 +194,44 @@ module.exports = {
       res.status(500).json({ success: false, message: err.message });
     }
   },
-  getTrendingItineraries: async (req, res) => {
-    try {
-      const itineraries = await ItineraryService.findAll();
-      const trending = itineraries
-        .filter(iti => 
-          iti.trending === 'Yes' && 
-          iti.status === 'Active' && 
-          !iti.delete
-        )
-        .slice(0, 10)
-        .map(transformItinerary); // Transform the data
-      
-      res.status(200).json({
-        success: true,
-        data: trending,
-        message: "ITINERARIES_FETCHED"
-      });
-    } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
-    }
-  },
+  // Get category by route/name
   getCategoryByRoute: async (req, res) => {
     try {
       const { route } = req.params;
       
-      // Try to find by _id first (if route is an ObjectId)
-      let category = await CategoryService.findById(route);
+      console.log('getCategoryByRoute called with route:', route);
+      
+      if (!route) {
+        return res.status(400).json({
+          success: false,
+          message: "Route parameter is required"
+        });
+      }
+      
+      let category = null;
+      
+      // Try to find by _id first (if route is a valid ObjectId)
+      const mongoose = require('mongoose');
+      if (mongoose.Types.ObjectId.isValid(route)) {
+        try {
+          category = await CategoryService.findById(route);
+          console.log('Category found by ID:', category ? 'Yes' : 'No');
+        } catch (err) {
+          // If findById fails, continue to search by name
+          console.log('Category not found by ID, trying name search:', err.message);
+        }
+      }
       
       // If not found by ID, try to find by name
       if (!category) {
         const categories = await CategoryService.findAll();
-        category = categories.find(cat => 
-          cat.name?.toLowerCase() === route?.toLowerCase() ||
-          cat._id?.toString() === route
-        );
+        category = categories.find(cat => {
+          const catName = cat.name?.toLowerCase() || '';
+          const catId = cat._id?.toString() || '';
+          const routeLower = route?.toLowerCase() || '';
+          return catName === routeLower || catId === route;
+        });
+        console.log('Category found by name:', category ? 'Yes' : 'No');
       }
       
       if (!category) {
@@ -213,6 +247,7 @@ module.exports = {
         message: "CATEGORY_FOUND"
       });
     } catch (err) {
+      console.error('Error in getCategoryByRoute:', err);
       res.status(500).json({ success: false, message: err.message });
     }
   },

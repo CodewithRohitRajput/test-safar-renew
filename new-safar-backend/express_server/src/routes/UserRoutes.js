@@ -10,6 +10,7 @@ router.get('/trending', UserController.getTrendingItineraries);
 router.get('/home_catgories', UserController.getHomeCategories);
 router.get('/get_gallery', UserController.getGalleryImages);
 router.get('/terms_and_conditions', UserController.getTermsAndConditions);
-router.get('/categories/:route', UserController.getCategoryByRoute); // ADD THIS
+// Category route - must be after other specific routes to avoid conflicts
+router.get('/categories/:route', UserController.getCategoryByRoute);
 
 module.exports = router;
