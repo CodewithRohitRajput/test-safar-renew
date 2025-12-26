@@ -1,0 +1,19 @@
+FROM node:20-alpine
+
+#create app directory
+WORKDIR /backend-app
+
+#install app dependencies
+COPY package*.json ./
+COPY ./prisma/ ./prisma/
+# Run npm install
+RUN npm install
+RUN npx prisma generate
+# RUN npx prisma db push
+COPY . .
+#Bundle app source
+
+
+EXPOSE 8080
+
+CMD [ "npm","start" ]

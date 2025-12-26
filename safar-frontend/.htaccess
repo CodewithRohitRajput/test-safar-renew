@@ -1,0 +1,1 @@
+RewriteEngine On RewriteCond %{REQUEST_URI} ^/blog RewriteRule ^blog/(.*)$ https://blog.safarwanderlust.com/$1 [R=301,L] 

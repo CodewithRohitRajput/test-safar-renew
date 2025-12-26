@@ -1,0 +1,33 @@
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: SSH into VPS and pull latest changes
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}     
+          VPS_USER: ${{ secrets.VPS_USER }}      # e.g., root
+          VPS_PASS: ${{ secrets.VPS_PASS }}      # your VPS password
+          PROJECT_DIR: ${{ secrets.PROJECT_DIR }} # e.g., /var/www/yourproject
+        run: |
+          sshpass -p "$VPS_PASS" ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "
+            cd $PROJECT_DIR
+            git reset --hard
+            git pull origin master
+            npm install
+            npm run build
+            pm2 restart safar-frontend
+          "
